@@ -37,6 +37,7 @@ def Server(epsilon,d,pdatalist):
     for i in range(0,d):
         fv.append((C[i]/n-q)/(p-q))
     print("估计频率:",fv)
+    print(sum(fv))
     return fv
 
 def MSE(datalist,FV,d):
@@ -160,22 +161,68 @@ def merge_A(LST,k): #输入含k个节点的估计频率序列LST，输出对LST�
 
 
 
+def  non_negativity(LST,k): #非负性处理
+    while(True):
+        positive_count = 0
+        positive_num = 0
+        flag=1
+        for i in range(0, k):
+            if LST[i] < 0:
+                LST[i] = 0
+                flag=0
+            elif LST[i] > 0:
+                positive_count += LST[i]
+                positive_num += 1
+        if flag==1:   #没有负频率
+            print(LST)
+            print(sum(LST))
+            return LST
+        print("正值总和=", positive_count)
+        x = positive_count - 1  # 总差值
+        y = x / positive_num  # 平均差值
+        for i in range(0, k):
+            if LST[i] > 0:
+                LST[i] -= y
 
+def get_ZIPF(a,size,d):
+    x_true = random.zipf(a, size)  # （无0数据）#############zipf分布
+    datalist = x_true[x_true <= d]  # select size<d data upload to server(无0数据) #获取用户真实数据????????????这句为什么能这么写？？？？？？？？？
+    return datalist
 
+def get_UNIFORM(size,d):
+    datalist = []
+    for i in range(0,size):
+        datalist.append(random.randint(1,d))
+    return datalist
 
+def get_NORMAL(size,d):
+    datalist=[]
+    for i in range(0,size):
+        x = int(random.normal(d/2,700))
+        if x>=1 and x<=d :
+            datalist.append(x)
+    print(datalist)
+    return datalist
 
-
-
-
-
+def get_LPLS(size,d):
+    datalist=[]
+    for i in range(0,size):
+        x = int(random.laplace(d/2,500))
+        if x>=1 and x<=d :
+            datalist.append(x)
+    print(datalist)
+    return datalist
 
 
 ##################main
 
-epsilon = 1# Privacy budget of 3
-d = 1024 # For simplicity, we use a dataset with d possible data items
-x_true = random.zipf(a=1.1, size=50000)#（无0数据）#############zipf分布
-datalist = x_true[x_true<=d]#select size<d data upload to server(无0数据) #获取用户真实数据
+epsilon = 1  # Privacy budget of 3
+d = 1024     # For simplicity, we use a dataset with d possible data items
+#datalist = get_ZIPF(1.1,50000,d)
+#datalist = get_UNIFORM(50000,d)
+#datalist = get_NORMAL(50000,d)
+datalist = get_LPLS(50000,d)
+
 print("用户数量：",len(datalist))  #用户个数
 pdatalist=[]
 for data in datalist:     #获取用户扰动后数据
@@ -183,7 +230,8 @@ for data in datalist:     #获取用户扰动后数据
     pdatalist.append(pdata)
 FV = Server(epsilon,d,pdatalist)    #server返回聚合频率结果
 #MSE(datalist,FV,d)
-merge_A(FV,len(FV))
+NNFV=non_negativity(FV,len(FV))
+merge_A(NNFV,len(NNFV))
 
 
 
