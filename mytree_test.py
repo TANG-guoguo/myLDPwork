@@ -9,7 +9,12 @@ from func_module import errormetric
 from func_module import realfreq
 from numpy import random
 
-
+class Nodex(object):
+    def __init__(self, frequency, divide_flag, count, interval):
+        self.frequency = frequency
+        self.divide_flag = divide_flag
+        self.count = count
+        self.interval = interval
 
 
 
@@ -42,6 +47,40 @@ def get_LPLS(size,d):
             datalist.append(x)
     #print(datalist)
     return datalist
+
+
+def tree_firstconstruction(FBTree,CUT,fvlist,layertag,start_size):
+    node_num = len(CUT)
+    for i in range(0,node_num):
+        name='L-'+str(layertag)+'N-'+str(i)
+        frequency = fvlist[i]
+        left = CUT[i][0]
+        right = CUT[i][-1]
+        num_in_node = start_size
+        FBTree.create_node(tag=name, identifier=name, parent='root',data=Nodex(frequency, True, num_in_node, np.array([left, right])))
+    #FBTree.show(key=False)
+    #print("树总节点个数：",FBTree.size())
+
+
+def tree_upconstruction(FBTree,CUT,fvlist,layertag):
+    node_num = len(fvlist)
+    for i in range(0,node_num):
+        name = 'L-' + str(layertag) + 'N-' + str(i)
+        frequency = fvlist[i]
+        left_index = CUT[i][0]
+        right_index = CUT[i][-1]
+        lname='L-'+ str(layertag-1) + 'N-' + str(left_index)
+        rname = 'L-' + str(layertag - 1) + 'N-' + str(right_index)
+        left = FBTree[lname].data.interval[0]   #左边界
+        right = FBTree[rname].data.interval[1]   #右边界
+        num_in_node = len(CUT[i])
+        FBTree.create_node(tag=name, identifier=name, parent='root',data=Nodex(frequency, True, num_in_node, np.array([left, right])))
+        for j in CUT[i]:  #为新节点安插子节点
+            childname = 'L-'+ str(layertag-1) + 'N-' + str(j)
+            FBTree.move_node(childname,name)
+
+
+
 
 
 
@@ -153,7 +192,7 @@ def merge_A(LST,k): #输入含k个节点的估计频率序列LST，输出对LST�
             continue
         if(flaglist[i]==1): #说明该节点为最大节点已经被结合
             # 如果有前一个区间，收尾前一个区间
-            if(i!=0):
+            if(len(p)!=0):
                 FINALIST.append(p)
                 fcountlist.append(fcount)
                 p = []
@@ -211,6 +250,7 @@ def merge_A(LST,k): #输入含k个节点的估计频率序列LST，输出对LST�
     print("划分：",FINALIST)
     print("划分后的频率：",fcountlist)
     print("区间个数",len(fcountlist))
+    return [FINALIST,fcountlist,len(fcountlist)]    #返回：划分、划分后频率、划分成的个数
 
 
 
@@ -240,8 +280,14 @@ def  non_negativity(LST,k): #非负性处理
 
 def main_func(datalist, user_num, d, epsilon, start_size):
     #对域进行初次分割
+    CUTLIST = []
+    NNFVLIST = []
     CUT = [[i,i+start_size-1] for i in range(0,d,start_size)]
     node_num = len(CUT) #本层节点个数
+    CUTLIST.append(CUT)
+    #创建树
+    FBTree = Tree()  #构建频率平衡树FBTree
+    FBTree.create_node('Root', 'root', data=Nodex(1, True, 1, np.array([0, d])))  #创建根节点
 
     #收集本层用户回答得到pdatalist
     pdatalist = get_user_pdata(datalist,user_num,CUT,node_num,epsilon,user_num//tmp_h)  #本层用户个数user_num//tmp_h
@@ -250,8 +296,19 @@ def main_func(datalist, user_num, d, epsilon, start_size):
     #聚合频率
     fv = frequency_aggregation(epsilon,pdatalist,node_num)
     NNFV = non_negativity(fv,node_num)
-    merge_A(NNFV,node_num)
+    NNFVLIST.append(NNFV)
 
+    #构建初层树
+    tree_firstconstruction(FBTree,CUT,NNFV,0,start_size)
+    layertag=1
+    while(len(CUT)>3):
+        CUT,NNFV,node_num = merge_A(NNFV,node_num)
+        tree_upconstruction(FBTree,CUT,NNFV,layertag)
+        layertag+=1
+        CUTLIST.append(CUT)
+        NNFVLIST.append(NNFV)
+    FBTree.show(key=False)
+    
 
 
 
@@ -263,7 +320,7 @@ def main_func(datalist, user_num, d, epsilon, start_size):
 if __name__ == "__main__":
     epsilon = 1  # Privacy budget
     d = 1024  # For simplicity, we use a dataset with d possible data items
-    start_size = 4    #初始划分粒度
+    start_size = 2    #初始划分粒度
     tmp_h = math.ceil(math.log2(d/start_size))    #当前预计树高
     #datalist = get_ZIPF(1.01,500000,d)    #用这个要改80行删除语句
     # datalist = get_UNIFORM(50000,d)
