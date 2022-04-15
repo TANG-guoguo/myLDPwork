@@ -48,6 +48,15 @@ def get_LPLS(size,d):
     #print(datalist)
     return datalist
 
+def CUT_TO_INTERVAL(FBTree, CUT ,layer):
+    INTERVAL=[]
+    node_num = len(CUT)
+    tmp=[]
+    for i in range(0,node_num):
+        name='L-'+str(layer)+'N-'+str(i)
+        INTERVAL.append([FBTree[name].data.interval[0],FBTree[name].data.interval[1]])
+    return INTERVAL
+
 
 def tree_firstconstruction(FBTree,CUT,fvlist,layertag,start_size):
     node_num = len(CUT)
@@ -90,7 +99,7 @@ def Client(epsilon,CUT,CUT_num,data):
     p = 0.5
     B = []
     for i in range(0,CUT_num):    #对data进行一元编码
-        if(data>=CUT[i][0] and data<=CUT[i][1]):
+        if(data>=CUT[i][0] and data<=CUT[i][-1]):
             B.append(1)
         else:
             B.append(0)
@@ -277,8 +286,32 @@ def  non_negativity(LST,k): #非负性处理
             if LST[i] > 0:
                 LST[i] -= y
 
+def weighted_averaging(FBTree,NNFV,layer,user_scale_in_each_layer):   #对layer层节点进行加群平均处理，返回加权平均后频率
+    lowlayer = layer-1
+    node_num = len(NNFV)
+    resultlist=[]
+    varience_low = 4 * math.exp(epsilon) / (user_scale_in_each_layer[lowlayer] * (math.exp(epsilon) - 1) ** 2)   #下层方差
+    varience_this = 4 * math.exp(epsilon) / (user_scale_in_each_layer[layer] * (math.exp(epsilon) - 1) ** 2)   #本层方差
+    for i in range(0,node_num):
+        name = 'L-' + str(layer) + 'N-' + str(i)
+        fv = FBTree[name].data.frequency
+        n = FBTree[name].data.count   #n为该节点所包含的子节点个数
+        varience_child =n*varience_low    #子节点方差
+        lambda1 = varience_child / (varience_this + varience_child)
+        lambda2 = 1-lambda1
+        newfv = lambda1*NNFV[i]+lambda2*fv
+        resultlist.append(newfv)
+        FBTree[name].data.frequency = newfv  #更新树中的节点频率
+
+
+    return resultlist
+
+
+
 
 def main_func(datalist, user_num, d, epsilon, start_size):
+    global tmp_h
+    user_scale_in_each_layer=[]
     #对域进行初次分割
     CUTLIST = []
     NNFVLIST = []
@@ -291,6 +324,7 @@ def main_func(datalist, user_num, d, epsilon, start_size):
 
     #收集本层用户回答得到pdatalist
     pdatalist = get_user_pdata(datalist,user_num,CUT,node_num,epsilon,user_num//tmp_h)  #本层用户个数user_num//tmp_h
+    user_scale_in_each_layer.append(len(pdatalist))  #记录该层用户数量
     #print(len(pdatalist))
 
     #聚合频率
@@ -308,7 +342,41 @@ def main_func(datalist, user_num, d, epsilon, start_size):
         CUTLIST.append(CUT)
         NNFVLIST.append(NNFV)
     FBTree.show(key=False)
-    
+    tmp_h = layertag   #更新树高
+    assert tmp_h==len(CUTLIST)
+
+    #收集上层用户回答，调整树结构
+    layer = 1
+    while(True):
+        CUT = CUTLIST[layer]
+        INTERVAL = CUT_TO_INTERVAL(FBTree,CUT,layer)
+        print('分割转区间结果：',INTERVAL)
+
+        # 收集本层用户回答得到pdatalist
+        user_num=len(datalist)
+        node_num=len(INTERVAL)
+        print("剩余用户数量：",user_num)
+        pdatalist = get_user_pdata(datalist, user_num, INTERVAL, node_num, epsilon,user_num// tmp_h)  # 本层用户个数user_num//tmp_h
+        user_scale_in_each_layer.append(len(pdatalist))  #记录本层用户数量
+
+        # 聚合频率
+        fv = frequency_aggregation(epsilon, pdatalist, node_num)
+        NNFV = non_negativity(fv, node_num)
+        #加权平均处理
+        NNFV = weighted_averaging(FBTree,NNFV,layer,user_scale_in_each_layer)
+        print("加权后：",NNFV)
+        #根据新频率调整上层树
+        ######################
+
+
+
+        ######################
+        layer+=1
+
+
+
+
+
 
 
 
