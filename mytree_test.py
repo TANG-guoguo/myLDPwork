@@ -10,8 +10,9 @@ from func_module import realfreq
 from numpy import random
 
 class Nodex(object):
-    def __init__(self, frequency, divide_flag, count, interval):
+    def __init__(self, frequency, ffrequency,divide_flag, count, interval):
         self.frequency = frequency
+        self.frequency = ffrequency
         self.divide_flag = divide_flag
         self.count = count
         self.interval = interval
@@ -66,7 +67,7 @@ def tree_firstconstruction(FBTree,CUT,fvlist,layertag,start_size):
         left = CUT[i][0]
         right = CUT[i][-1]
         num_in_node = start_size
-        FBTree.create_node(tag=name, identifier=name, parent='root',data=Nodex(frequency, True, num_in_node, np.array([left, right])))
+        FBTree.create_node(tag=name, identifier=name, parent='Root',data=Nodex(frequency,frequency, True, num_in_node, np.array([left, right])))
     #FBTree.show(key=False)
     #print("树总节点个数：",FBTree.size())
 
@@ -83,14 +84,10 @@ def tree_upconstruction(FBTree,CUT,fvlist,layertag):
         left = FBTree[lname].data.interval[0]   #左边界
         right = FBTree[rname].data.interval[1]   #右边界
         num_in_node = len(CUT[i])
-        FBTree.create_node(tag=name, identifier=name, parent='root',data=Nodex(frequency, True, num_in_node, np.array([left, right])))
+        FBTree.create_node(tag=name, identifier=name, parent='Root',data=Nodex(frequency,frequency, True, num_in_node, np.array([left, right])))
         for j in CUT[i]:  #为新节点安插子节点
             childname = 'L-'+ str(layertag-1) + 'N-' + str(j)
             FBTree.move_node(childname,name)
-
-
-
-
 
 
 
@@ -181,7 +178,7 @@ def merge_A(LST,k): #输入含k个节点的估计频率序列LST，输出对LST�
         flaglist[k-1] = 1
         flaglist[k-2] = 1
     else :
-        if (fa + LST[a - 1]) >= (fa + LST[a + 1]):
+        if (fa + LST[a - 1]) <= (fa + LST[a + 1]):
             F = (fa + LST[a-1])
             flaglist[a] = 1
             flaglist[a-1] = 1
@@ -231,6 +228,12 @@ def merge_A(LST,k): #输入含k个节点的估计频率序列LST，输出对LST�
             fcountlist.append(fcount)
             break
 
+        elif (i == k - 1):  # 边界处理?????????直接加入？？？？？？k-2自己跑了k-1跟上
+            # 结束，收尾，退出
+            FINALIST[-1].append(k-1)
+            fcountlist[-1]+=LST[k - 1]
+            break
+
         else:   #非边界,尝试加入
             tmp = LST[i] + fcount
             if(tmp >= eta): #当前区间会满,临界
@@ -259,6 +262,7 @@ def merge_A(LST,k): #输入含k个节点的估计频率序列LST，输出对LST�
     print("划分：",FINALIST)
     print("划分后的频率：",fcountlist)
     print("区间个数",len(fcountlist))
+    assert FINALIST[-1][-1]==k-1
     return [FINALIST,fcountlist,len(fcountlist)]    #返回：划分、划分后频率、划分成的个数
 
 
@@ -276,10 +280,10 @@ def  non_negativity(LST,k): #非负性处理
                 positive_count += LST[i]
                 positive_num += 1
         if flag==1:   #没有负频率
-            print(LST)
+            print("非负性处理后：",LST)
             print(sum(LST))
             return LST
-        print("正值总和=", positive_count)
+        #print("正值总和=", positive_count)
         x = positive_count - 1  # 总差值
         y = x / positive_num  # 平均差值
         for i in range(0, k):
@@ -302,9 +306,34 @@ def weighted_averaging(FBTree,NNFV,layer,user_scale_in_each_layer):   #对layer�
         newfv = lambda1*NNFV[i]+lambda2*fv
         resultlist.append(newfv)
         FBTree[name].data.frequency = newfv  #更新树中的节点频率
+        FBTree[name].data.ffrequency = newfv  # 更新树中的节点频率
 
 
     return resultlist
+
+
+def Mean_Consistency(FBTree):
+    for node in FBTree.expand_tree(mode=Tree.WIDTH, sorting=False):
+        vname = node
+        if vname =='Root':
+            continue
+        else:   #非叶节点
+            fv = FBTree[vname].data.frequency
+            vpname = FBTree.parent(vname).tag    #当前节点v的父节点的名字
+            vpB = FBTree[vpname].data.count
+            fpv = FBTree[vpname].data.frequency
+            fvsum = fv
+            for u in FBTree.siblings(vname):
+                fvsum += u.data.frequency
+            #print(fvsum)
+            newfv = fv + (fpv-fvsum)/vpB
+            #print(newfv)
+            FBTree[vname].data.ffrequency = newfv
+    return
+
+
+
+
 
 
 
@@ -317,13 +346,13 @@ def main_func(datalist, user_num, d, epsilon, start_size):
     NNFVLIST = []
     CUT = [[i,i+start_size-1] for i in range(0,d,start_size)]
     node_num = len(CUT) #本层节点个数
-    CUTLIST.append(CUT)
+
     #创建树
     FBTree = Tree()  #构建频率平衡树FBTree
-    FBTree.create_node('Root', 'root', data=Nodex(1, True, 1, np.array([0, d])))  #创建根节点
+    FBTree.create_node('Root', 'Root', data=Nodex(1,1, True, 1, np.array([0, d])))  #创建根节点
 
     #收集本层用户回答得到pdatalist
-    pdatalist = get_user_pdata(datalist,user_num,CUT,node_num,epsilon,user_num//tmp_h)  #本层用户个数user_num//tmp_h
+    pdatalist = get_user_pdata(datalist,user_num,CUT,node_num,epsilon,user_num//2)  #本层用户个数user_num//tmp_h
     user_scale_in_each_layer.append(len(pdatalist))  #记录该层用户数量
     #print(len(pdatalist))
 
@@ -335,20 +364,28 @@ def main_func(datalist, user_num, d, epsilon, start_size):
     #构建初层树
     tree_firstconstruction(FBTree,CUT,NNFV,0,start_size)
     layertag=1
-    while(len(CUT)>3):
+    #根据初层频率划分建上层树
+    CUT, NNFV, node_num = merge_A(NNFV, node_num)
+    CUTLIST.append(CUT)
+    tree_upconstruction(FBTree, CUT, NNFV, layertag)
+    while(len(CUT)>3):  #获得虚空树高
         CUT,NNFV,node_num = merge_A(NNFV,node_num)
-        tree_upconstruction(FBTree,CUT,NNFV,layertag)
+        #tree_upconstruction(FBTree,CUT,NNFV,layertag)
         layertag+=1
         CUTLIST.append(CUT)
         NNFVLIST.append(NNFV)
-    FBTree.show(key=False)
-    tmp_h = layertag   #更新树高
+    #FBTree.show(key=False)
+    tmp_h = layertag   #更新树高(含根节点)   其实是虚空树高，上层理论上存在但其实没有变成节点
     assert tmp_h==len(CUTLIST)
+    print("本次建树完毕，预计树高",tmp_h)
 
     #收集上层用户回答，调整树结构
     layer = 1
+    FLAG=0
     while(True):
-        CUT = CUTLIST[layer]
+        print("正在对第",layer,"层回答…………")
+        CUT = CUTLIST[layer-1]
+        print('分割：', CUT)
         INTERVAL = CUT_TO_INTERVAL(FBTree,CUT,layer)
         print('分割转区间结果：',INTERVAL)
 
@@ -356,7 +393,11 @@ def main_func(datalist, user_num, d, epsilon, start_size):
         user_num=len(datalist)
         node_num=len(INTERVAL)
         print("剩余用户数量：",user_num)
-        pdatalist = get_user_pdata(datalist, user_num, INTERVAL, node_num, epsilon,user_num// tmp_h)  # 本层用户个数user_num//tmp_h
+        if(FLAG==1):
+            user_num_thislayer = user_num
+        else:
+            user_num_thislayer = user_num// tmp_h
+        pdatalist = get_user_pdata(datalist, user_num, INTERVAL, node_num, epsilon,user_num_thislayer)  # 本层用户个数user_num//tmp_h
         user_scale_in_each_layer.append(len(pdatalist))  #记录本层用户数量
 
         # 聚合频率
@@ -365,13 +406,54 @@ def main_func(datalist, user_num, d, epsilon, start_size):
         #加权平均处理
         NNFV = weighted_averaging(FBTree,NNFV,layer,user_scale_in_each_layer)
         print("加权后：",NNFV)
-        #根据新频率调整上层树
+
+        if(FLAG==1):
+            #print("CUTLIST=", CUTLIST)
+            FBTree['Root'].data.count = len(NNFV)
+            print("真的拜拜！")
+            break
+        #根据新频率构建上层树
         ######################
+        CUT,NNFV,node_num = merge_A(NNFV,len(NNFV))
+        CUTLIST = CUTLIST[0:layer]   #重构cutlist
+        CUTLIST.append(CUT)
+        tree_upconstruction(FBTree, CUT, NNFV, layer+1)
+        layertag=layer+1
+        if (len(CUT)<=3):   #不需要再向上合并
+            print("CUTLIST=",CUTLIST)
+            print("拜拜")
+            FLAG=1
 
-
+        while (len(CUT) > 3):  # 更新虚空树高
+            CUT, NNFV, node_num = merge_A(NNFV, node_num)
+            layertag += 1
+            CUTLIST.append(CUT)
+            NNFVLIST.append(NNFV)
+        #FBTree.show(key=False)
+        tmp_h = layertag  # 更新树高(含根节点)   其实是虚空树高，上层理论上存在但其实没有变成节点
+        assert tmp_h == len(CUTLIST)
+        print("本次建树完毕，预计树高", tmp_h)
 
         ######################
         layer+=1
+    FBTree.show(key=False)
+
+    #一致化处理
+    print("开始一致化处理!")
+    Mean_Consistency(FBTree)
+
+    #拆到最底层
+    LOWEST_NODE_FV=[]
+    for i in range(0,d//start_size):
+        name = 'L-' + str(0) + 'N-' + str(i)
+        tmp=FBTree[name].data.ffrequency
+        LOWEST_NODE_FV.append(tmp / 2)
+        LOWEST_NODE_FV.append(tmp / 2)
+    print("最终频率=",LOWEST_NODE_FV)
+    print(len(LOWEST_NODE_FV))
+    print("剩余用户",len(datalist))
+    LOWEST_NODE_FV=non_negativity(LOWEST_NODE_FV, d)
+    print("非负处理后最终频率=", LOWEST_NODE_FV)
 
 
 
