@@ -331,7 +331,12 @@ def Mean_Consistency(FBTree):
             FBTree[vname].data.ffrequency = newfv
     return
 
-
+def answer(qlist,fvlist):
+    resultlist=[]
+    for query in qlist:
+        answertmp=sum(fvlist[query[0]:query[1]+1])
+        resultlist.append(answertmp)
+    print(resultlist)
 
 
 
@@ -454,6 +459,7 @@ def main_func(datalist, user_num, d, epsilon, start_size):
     print("剩余用户",len(datalist))
     LOWEST_NODE_FV=non_negativity(LOWEST_NODE_FV, d)
     print("非负处理后最终频率=", LOWEST_NODE_FV)
+    return LOWEST_NODE_FV
 
 
 
@@ -474,11 +480,38 @@ if __name__ == "__main__":
     tmp_h = math.ceil(math.log2(d/start_size))    #当前预计树高
     #datalist = get_ZIPF(1.01,500000,d)    #用这个要改80行删除语句
     # datalist = get_UNIFORM(50000,d)
-    datalist = get_NORMAL(500000,d)     #datalist为真实数据集
+    #datalist = get_NORMAL(500000,d)     #datalist为真实数据集
     # datalist = get_LPLS(50000, d)
+    #print("用户数量：", len(datalist))  # 用户个数
+
+    # #存储datalist
+    # with open("tangjiadataset.txt","w") as f:
+    #     for tjdata in datalist:
+    #         f.write(str(tjdata))
+    #         f.write('\n')
+
+    #读取数据
+    dataset = np.loadtxt("tangjiadataset.txt", int)
+
+
+    print("用户数量：", len(dataset))  # 用户个数
+    print(dataset)
+    datalist=[]
+    for i in dataset:
+        datalist.append(i)
+    print(datalist)
     print("用户数量：", len(datalist))  # 用户个数
 
-    main_func(datalist,len(datalist),d,epsilon,start_size)
+
+    #读取查询
+    query_interval_table = np.loadtxt("tjquery.txt", int)
+
+
+
+
+
+    LOWEST_NODE_FV = main_func(datalist,len(datalist),d,epsilon,start_size)
+    answer(query_interval_table, LOWEST_NODE_FV)
 
 
 
