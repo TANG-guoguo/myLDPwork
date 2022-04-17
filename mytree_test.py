@@ -331,12 +331,30 @@ def Mean_Consistency(FBTree):
             FBTree[vname].data.ffrequency = newfv
     return
 
-def answer(qlist,fvlist):
+def answer(qlist,fvlist,realfvlist):
     resultlist=[]
+    realresultlist=[]
     for query in qlist:
-        answertmp=sum(fvlist[query[0]:query[1]+1])
-        resultlist.append(answertmp)
-    print(resultlist)
+        answertmp1 = sum(fvlist[query[0]:query[1]+1])
+        answertmp2 = sum(realfvlist[query[0]:query[1] + 1])
+        resultlist.append(answertmp1)
+        realresultlist.append(answertmp2)
+    print("估计回答：",resultlist)
+    print("真实回答：",realresultlist)
+    #计算mse
+    MSE=0
+    for i in range(0,200):
+        MSE+=(realresultlist[i]-resultlist[i])**2
+    print("均方误差=",MSE/200)
+
+
+
+def realfv(datalist,num,d):
+    realcountlist=[0 for i in range(0,d)]
+    for data in datalist:
+        realcountlist[data-1]+=1
+    realfvlist = [c/num for c in realcountlist]
+    return realfvlist
 
 
 
@@ -357,7 +375,7 @@ def main_func(datalist, user_num, d, epsilon, start_size):
     FBTree.create_node('Root', 'Root', data=Nodex(1,1, True, 1, np.array([0, d])))  #创建根节点
 
     #收集本层用户回答得到pdatalist
-    pdatalist = get_user_pdata(datalist,user_num,CUT,node_num,epsilon,user_num//2)  #本层用户个数user_num//tmp_h
+    pdatalist = get_user_pdata(datalist,user_num,CUT,node_num,epsilon,user_num//4)  #本层用户个数user_num//tmp_h
     user_scale_in_each_layer.append(len(pdatalist))  #记录该层用户数量
     #print(len(pdatalist))
 
@@ -401,7 +419,7 @@ def main_func(datalist, user_num, d, epsilon, start_size):
         if(FLAG==1):
             user_num_thislayer = user_num
         else:
-            user_num_thislayer = user_num// tmp_h
+            user_num_thislayer = user_num// (tmp_h-layer+1)
         pdatalist = get_user_pdata(datalist, user_num, INTERVAL, node_num, epsilon,user_num_thislayer)  # 本层用户个数user_num//tmp_h
         user_scale_in_each_layer.append(len(pdatalist))  #记录本层用户数量
 
@@ -506,12 +524,12 @@ if __name__ == "__main__":
     #读取查询
     query_interval_table = np.loadtxt("tjquery.txt", int)
 
-
-
+    #计算真实分布频率
+    realfvlist = realfv(datalist, len(datalist), d)
 
 
     LOWEST_NODE_FV = main_func(datalist,len(datalist),d,epsilon,start_size)
-    answer(query_interval_table, LOWEST_NODE_FV)
+    answer(query_interval_table, LOWEST_NODE_FV, realfvlist)
 
 
 
