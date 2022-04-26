@@ -492,14 +492,22 @@ def main_func(datalist, user_num, d, epsilon, start_size):
     print(len(NNLNFV),"=512")
     LOWLOWEST_NODE_FV=[]
     for nODE in NNLNFV:
-        LOWLOWEST_NODE_FV.append(nODE/8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
-        LOWLOWEST_NODE_FV.append(nODE / 8)
+        LOWLOWEST_NODE_FV.append(nODE/16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
+        LOWLOWEST_NODE_FV.append(nODE / 16)
 
 
 
@@ -526,7 +534,7 @@ if __name__ == "__main__":
     repeat=1
     epsilon = 1  # Privacy budget
     d = 1024  # For simplicity, we use a dataset with d possible data items
-    start_size = 8    #初始划分粒度
+    start_size = 16    #初始划分粒度
     tmp_h = math.ceil(math.log2(d/start_size))    #当前预计树高
     #datalist = get_ZIPF(1.01,500000,d)    #用这个要改80行删除语句
     #datalist = get_UNIFORM(50000,d)
